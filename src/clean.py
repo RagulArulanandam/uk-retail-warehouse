@@ -235,6 +235,86 @@ def analyze_revenue_impact_of_missing_customer(df: pd.DataFrame) -> None:
     print(f"\nRevenue from missing-Customer-ID rows: {missing_revenue:,.2f} "
           f"of {total_revenue:,.2f} total ({pct:.2f}%)")
 
+def inspect_duplicate_rows(df: pd.DataFrame) -> None:
+    duplicate_mask = df.duplicated(keep=False)
+    duplicate_df = df[duplicate_mask]
+
+    print("\n Duplicate rows sample:")
+    print(duplicate_df.head(20).to_string(index=False))
+
+def analyze_duplicate_groups(df: pd.DataFrame) -> None:
+
+    duplicate_counts = (
+        df.value_counts().reset_index(name="occurrence_count")
+    )
+
+    duplicate_groups = duplicate_counts[
+        duplicate_counts["occurrence_count"] > 1
+    ]
+
+    print("\n Duplicate Groups:", len(duplicate_groups))
+    print("\n Duplicate occurrence distribution")
+    print(
+        duplicate_groups["occurrence_count"]
+        .value_counts()
+        .sort_index()
+    )
+
+    print("\n Most repeated duplicated groups:")
+    print(
+        duplicate_groups.sort_values("occurrence_count", ascending=False)
+        .head(20)
+        .to_string(index=False)
+    )
+
+def inspect_duplicate_invoice_context(df: pd.DataFrame) -> None:
+    """Inspect invoices containing exact duplicate rows."""
+
+    duplicate_mask = df.duplicated(keep=False)
+
+    duplicate_df = df[duplicate_mask].copy()
+
+    invoice_summary = (
+        duplicate_df
+        .groupby("Invoice")
+        .agg(
+            duplicate_row_count=("Invoice", "size"),
+            unique_stockcodes=("StockCode", "nunique"),
+            invoice_total_quantity=("Quantity", "sum"),
+        )
+        .sort_values(
+            "duplicate_row_count",
+            ascending=False
+        )
+    )
+
+    print("\nInvoices containing duplicate rows:")
+    print(invoice_summary.head(20).to_string())
+
+def inspect_specific_invoice(df: pd.DataFrame, invoice_number: str) -> None:
+    """Inspect all rows belonging to one invoice."""
+
+    invoice_df = df[
+        df["Invoice"].astype(str) == invoice_number
+    ].copy()
+
+    print(f"\nInvoice {invoice_number} shape:", invoice_df.shape)
+
+    print("\nInvoice row sample:")
+    print(
+        invoice_df
+        .head(30)
+        .to_string(index=False)
+    )
+
+    print("\nStockCode occurrence distribution:")
+    print(
+        invoice_df["StockCode"]
+        .value_counts()
+        .value_counts()
+        .sort_index()
+    )
+
 
 # ---------------------------------------------------------------------------
 # ORCHESTRATION
@@ -255,6 +335,10 @@ def run_exploration(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 def run_investigation(df: pd.DataFrame) -> None:
     """Run the additional checks needed before finalising cleaning decisions."""
     check_duplicate_rows(df)
+    inspect_duplicate_rows(df)
+    analyze_duplicate_groups(df)
+    inspect_duplicate_invoice_context(df)
+    inspect_specific_invoice(df, "537434git")
     analyze_country(df)
     analyze_customer_country_consistency(df)
     analyze_missing_customer_stockcodes(df)
